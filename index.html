@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chuyển đổi M4A sang MP3 (Hỗ trợ Album)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Thư viện mã hóa MP3 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+    <!-- Thư viện nén ZIP cho Album -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Biểu tượng -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-6">
+        <div class="text-center">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
+                <i data-lucide="music-4" class="text-blue-500"></i>
+                M4A sang MP3
+            </h1>
+            <p class="text-sm text-gray-500 mt-2">Hỗ trợ kéo thả và xử lý hàng loạt Album</p>
+        </div>
+
+        <!-- Vùng kéo thả file -->
+        <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:bg-gray-50 transition cursor-pointer relative group">
+            <input type="file" id="audioInput" accept=".m4a,audio/m4a" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+            <i data-lucide="upload-cloud" class="w-12 h-12 text-gray-400 mx-auto mb-3 group-hover:text-blue-500 transition-colors"></i>
+            <p class="text-sm font-medium text-gray-700">Kéo thả File hoặc Thư mục vào đây (Hoặc Click)</p>
+            <p class="text-xs text-gray-500 mt-1">Tự động quét M4A, tải về file ZIP giữ nguyên cấu trúc thư mục</p>
+        </div>
+
+        <!-- Danh sách file đã chọn -->
+        <div id="fileListContainer" class="hidden space-y-2">
+            <div class="flex justify-between items-end">
+                <label class="block text-sm font-medium text-gray-700">Danh sách chờ</label>
+                <button id="clearQueueBtn" class="text-xs text-red-500 hover:text-red-700 font-medium">Xóa tất cả</button>
+            </div>
+            <div class="bg-gray-50 border border-gray-100 rounded-lg max-h-40 overflow-y-auto p-2">
+                <ul id="fileList" class="space-y-1">
+                    <!-- Các file sẽ xuất hiện ở đây -->
+                </ul>
+            </div>
+            <p id="totalSizeInfo" class="text-xs text-right text-gray-500 font-medium"></p>
+        </div>
+
+        <!-- Tùy chọn chất lượng -->
+        <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700">Chất lượng (Bitrate)</label>
+            <div class="flex gap-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="bitrate" value="128" class="text-blue-600 focus:ring-blue-500">
+                    <span class="text-sm text-gray-700">128 kbps</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="bitrate" value="320" checked class="text-blue-600 focus:ring-blue-500">
+                    <span class="text-sm text-gray-700 font-medium">320 kbps (Khuyên dùng)</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Nút chuyển đổi -->
+        <button id="convertBtn" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600">
+            <i data-lucide="refresh-cw" id="convertIcon"></i>
+            <span id="convertText">Chọn file để bắt đầu</span>
+        </button>
+
+        <!-- Trạng thái tiến trình -->
+        <div id="progressContainer" class="hidden space-y-4 p-4 bg-blue-50 rounded-xl">
+            <!-- Tiến trình tổng (Album) -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs text-blue-800 font-bold">
+                    <span id="overallStatusText">Tiến trình tổng:</span>
+                    <span id="overallProgressText">0.0000%</span>
+                </div>
+                <div class="w-full bg-blue-200 rounded-full h-1.5">
+                    <div id="overallProgressBar" class="bg-blue-700 h-1.5 rounded-full transition-all duration-100" style="width: 0%"></div>
+                </div>
+            </div>
+            <!-- Tiến trình file hiện tại -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs text-gray-600 font-medium">
+                    <span id="statusText" class="truncate w-4/5">Đang xử lý...</span>
+                    <span id="progressText">0.0000%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-1">
+                    <div id="progressBar" class="bg-blue-500 h-1 rounded-full transition-all duration-100" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kết quả -->
+        <div id="resultContainer" class="hidden pt-4 border-t border-gray-100">
+            <div class="bg-green-50 p-4 rounded-xl border border-green-100">
+                <p class="text-sm text-green-700 font-bold mb-2 flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i> Hoàn tất chuyển đổi!
+                </p>
+                <p id="resultInfo" class="text-xs text-green-800 mb-4 leading-relaxed"></p>
+                <a id="downloadLink" class="w-full inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-xl transition shadow-sm">
+                    <i data-lucide="download" class="w-5 h-5"></i> <span id="downloadBtnText">Tải xuống</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const dropZone = document.getElementById('dropZone');
+        const audioInput = document.getElementById('audioInput');
+        const fileListContainer = document.getElementById('fileListContainer');
+        const fileList = document.getElementById('fileList');
+        const totalSizeInfo = document.getElementById('totalSizeInfo');
+        const clearQueueBtn = document.getElementById('clearQueueBtn');
+        
+        const convertBtn = document.getElementById('convertBtn');
+        const convertIcon = document.getElementById('convertIcon');
+        const convertText = document.getElementById('convertText');
+        
+        const progressContainer = document.getElementById('progressContainer');
+        const overallProgressBar = document.getElementById('overallProgressBar');
+        const overallProgressText = document.getElementById('overallProgressText');
+        const overallStatusText = document.getElementById('overallStatusText');
+        
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const statusText = document.getElementById('statusText');
+        
+        const resultContainer = document.getElementById('resultContainer');
+        const downloadLink = document.getElementById('downloadLink');
+        const resultInfo = document.getElementById('resultInfo');
+        const downloadBtnText = document.getElementById('downloadBtnText');
+
+        let fileQueue = [];
+        let isConverting = false;
+        let rootFolderName = "";
+
+        // Hàm định dạng số làm tròn chính xác 4 chữ số thập phân
+        function formatDecimals(value) {
+            return Number(value).toFixed(4);
+        }
+
+        function formatBytesToMB(bytes) {
+            return formatDecimals(bytes / (1024 * 1024));
+        }
+
+        // --- XỬ LÝ KÉO THẢ VÀ CHỌN FILE ---
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('border-blue-500', 'bg-blue-50'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('border-blue-500', 'bg-blue-50'), false);
+        });
+
+        dropZone.addEventListener('drop', async (e) => {
+            if(isConverting) return;
+            let dt = e.dataTransfer;
+            let items = dt.items;
+
+            if (items && items.length > 0) {
+                let hasFolder = false;
+                rootFolderName = "";
+
+                for (let i = 0; i < items.length; i++) {
+                    let entry = items[i].webkitGetAsEntry();
+                    if (entry && entry.isDirectory) {
+                        hasFolder = true;
+                        // Lưu lại tên của thư mục gốc lớn nhất để đặt tên cho file ZIP
+                        if (!rootFolderName) rootFolderName = entry.name;
+                    }
+                }
+
+                if (hasFolder) {
+                    alert("Cảnh báo: Bạn vừa thả thư mục! Hãy chắc chắn bên trong chứa các file định dạng M4A.");
+                }
+
+                for (let i = 0; i < items.length; i++) {
+                    let item = items[i];
+                    if (item.kind === 'file') {
+                        let entry = item.webkitGetAsEntry();
+                        if (entry) {
+                            await traverseFileTree(entry);
+                        }
+                    }
+                }
+                renderQueue();
+            } else {
+                handleFiles(dt.files);
+            }
+        });
+
+        async function traverseFileTree(item, path = '') {
+            if (item.isFile) {
+                return new Promise((resolve) => {
+                    item.file((file) => {
+                        if (file.name.toLowerCase().endsWith('.m4a') || file.type.includes('m4a') || file.type === 'audio/x-m4a') {
+                            // Lưu lại đường dẫn tương đối (Ví dụ: 99%/Bài_hát.m4a)
+                            file.relativePath = path + file.name;
+                            fileQueue.push(file);
+                        }
+                        resolve();
+                    });
+                });
+            } else if (item.isDirectory) {
+                let dirReader = item.createReader();
+                let entries = await readAllEntries(dirReader);
+                for (let i = 0; i < entries.length; i++) {
+                    await traverseFileTree(entries[i], path + item.name + "/");
+                }
+            }
+        }
+        
+        function readAllEntries(dirReader) {
+            return new Promise((resolve, reject) => {
+                let allEntries = [];
+                function readEntries() {
+                    dirReader.readEntries((entries) => {
+                        if (entries.length === 0) {
+                            resolve(allEntries);
+                        } else {
+                            allEntries = allEntries.concat(entries);
+                            readEntries();
+                        }
+                    }, reject);
+                }
+                readEntries();
+            });
+        }
+
+        audioInput.addEventListener('change', function() {
+            if(isConverting) return;
+            handleFiles(this.files);
+            this.value = ""; // Reset input
+        });
+
+        function handleFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                let file = files[i];
+                // Kiểm tra định dạng m4a (hoặc audio nói chung)
+                if (file.name.toLowerCase().endsWith('.m4a') || file.type.includes('m4a') || file.type === 'audio/x-m4a') {
+                    fileQueue.push(file);
+                }
+            }
+            renderQueue();
+        }
+
+        function renderQueue() {
+            fileList.innerHTML = '';
+            let totalBytes = 0;
+
+            if (fileQueue.length === 0) {
+                fileListContainer.classList.add('hidden');
+                convertBtn.disabled = true;
+                convertText.textContent = "Chọn file để bắt đầu";
+                return;
+            }
+
+            fileListContainer.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+            progressContainer.classList.add('hidden');
+
+            fileQueue.forEach((file, index) => {
+                totalBytes += file.size;
+                let li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-white p-2 rounded border border-gray-100 shadow-sm text-sm";
+                
+                // Thêm số thứ tự để thể hiện rõ cấu trúc Album
+                let trackNum = (index + 1).toString().padStart(2, '0');
+                
+                let displayName = file.relativePath || file.name;
+                
+                li.innerHTML = `
+                    <div class="flex items-center gap-2 truncate pr-2">
+                        <span class="text-gray-400 font-mono text-xs w-5">${trackNum}.</span>
+                        <i data-lucide="file-audio" class="w-4 h-4 text-blue-400 flex-shrink-0"></i>
+                        <span class="truncate font-medium text-gray-700" title="${displayName}">${displayName}</span>
+                    </div>
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                        <span class="text-xs text-gray-500">${formatBytesToMB(file.size)} MB</span>
+                        <button onclick="removeFile(${index})" class="text-gray-400 hover:text-red-500 transition">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+                fileList.appendChild(li);
+            });
+
+            lucide.createIcons();
+            totalSizeInfo.textContent = `Tổng cộng: ${fileQueue.length} file (${formatBytesToMB(totalBytes)} MB)`;
+            
+            convertBtn.disabled = false;
+            convertText.textContent = fileQueue.length > 1 ? `Chuyển đổi Album (${fileQueue.length} file)` : "Bắt đầu chuyển đổi";
+        }
+
+        window.removeFile = function(index) {
+            if(isConverting) return;
+            fileQueue.splice(index, 1);
+            renderQueue();
+        }
+
+        clearQueueBtn.addEventListener('click', () => {
+            if(isConverting) return;
+            fileQueue = [];
+            renderQueue();
+        });
+
+        // --- LÕI CHUYỂN ĐỔI BỌC BẰNG PROMISE ĐỂ XỬ LÝ TUẦN TỰ ---
+        function convertToMp3(audioBuffer, bitrate, onProgress) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const channels = audioBuffer.numberOfChannels;
+                    const sampleRate = audioBuffer.sampleRate;
+                    const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, bitrate);
+                    const mp3Data = [];
+
+                    const leftChannel = audioBuffer.getChannelData(0);
+                    const rightChannel = channels > 1 ? audioBuffer.getChannelData(1) : leftChannel;
+
+                    const convertToInt16 = (samples) => {
+                        const int16 = new Int16Array(samples.length);
+                        for (let i = 0; i < samples.length; i++) {
+                            let s = Math.max(-1, Math.min(1, samples[i]));
+                            int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                        }
+                        return int16;
+                    };
+
+                    const leftInt16 = convertToInt16(leftChannel);
+                    const rightInt16 = convertToInt16(rightChannel);
+
+                    const sampleBlockSize = 1152;
+                    let currentIndex = 0;
+
+                    function encodeChunk() {
+                        if (currentIndex < leftInt16.length) {
+                            const leftChunk = leftInt16.subarray(currentIndex, currentIndex + sampleBlockSize);
+                            let mp3buf;
+                            
+                            if (channels === 2) {
+                                const rightChunk = rightInt16.subarray(currentIndex, currentIndex + sampleBlockSize);
+                                mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+                            } else {
+                                mp3buf = mp3encoder.encodeBuffer(leftChunk);
+                            }
+
+                            if (mp3buf.length > 0) mp3Data.push(mp3buf);
+
+                            currentIndex += sampleBlockSize;
+                            const percent = Math.min(100, (currentIndex / leftInt16.length) * 100);
+                            onProgress(percent);
+
+                            setTimeout(encodeChunk, 0); // Nhường luồng UI
+                        } else {
+                            const mp3buf = mp3encoder.flush();
+                            if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                            
+                            const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+                            resolve(blob);
+                        }
+                    }
+                    setTimeout(encodeChunk, 0);
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        }
+
+        // --- ĐIỀU KHIỂN HÀNG ĐỢI ---
+        convertBtn.addEventListener('click', async () => {
+            if (fileQueue.length === 0) return;
+
+            const bitrate = parseInt(document.querySelector('input[name="bitrate"]:checked').value);
+            
+            isConverting = true;
+            convertBtn.disabled = true;
+            clearQueueBtn.classList.add('hidden');
+            audioInput.disabled = true;
+            
+            convertIcon.classList.add('animate-spin');
+            convertText.textContent = "Đang xử lý...";
+            
+            progressContainer.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+            
+            let zip = new JSZip();
+            let totalOriginalBytes = 0;
+            let totalFinalBytes = 0;
+
+            try {
+                // Xử lý từng file tuần tự
+                for (let i = 0; i < fileQueue.length; i++) {
+                    let file = fileQueue[i];
+                    totalOriginalBytes += file.size;
+                    
+                    let trackNumber = (i + 1).toString().padStart(2, '0');
+                    overallStatusText.textContent = `Tiến trình Album (${i + 1}/${fileQueue.length})`;
+                    statusText.textContent = `Đang mã hóa: ${trackNumber} - ${file.name}`;
+                    
+                    progressBar.style.width = '0%';
+                    progressText.textContent = '0.0000%';
+
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    statusText.textContent = `Đang giải mã âm thanh: ${file.name}...`;
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+                    statusText.textContent = `Đang nén MP3 (${bitrate}kbps): ${file.name}`;
+                    const mp3Blob = await convertToMp3(audioBuffer, bitrate, (percent) => {
+                        let formattedPercent = formatDecimals(percent);
+                        progressBar.style.width = `${percent}%`;
+                        progressText.textContent = `${formattedPercent}%`;
+                        
+                        // Cập nhật thanh tổng
+                        let overallPercent = ((i * 100) + percent) / fileQueue.length;
+                        let formattedOverall = formatDecimals(overallPercent);
+                        overallProgressBar.style.width = `${overallPercent}%`;
+                        overallProgressText.textContent = `${formattedOverall}%`;
+                    });
+
+                    totalFinalBytes += mp3Blob.size;
+
+                    // Đổi tên file để giữ thứ tự album và cấu trúc thư mục
+                    let originalName = file.name.replace(/\.[^/.]+$/, "");
+                    let finalFileName = file.relativePath 
+                        ? file.relativePath.replace(/\.[^/.]+$/, ".mp3") 
+                        : (fileQueue.length > 1 ? `${trackNumber}_${originalName}.mp3` : `${originalName}.mp3`);
+
+                    if (fileQueue.length > 1 || file.relativePath) {
+                        // Thêm vào file ZIP nếu là cấu trúc Album hoặc Thư mục
+                        zip.file(finalFileName, mp3Blob);
+                    } else {
+                        // Nếu chỉ có 1 file, tải xuống trực tiếp luôn file MP3
+                        let url = URL.createObjectURL(mp3Blob);
+                        downloadLink.href = url;
+                        downloadLink.download = finalFileName;
+                        downloadBtnText.textContent = "Tải file MP3";
+                    }
+                }
+
+                // Nếu có nhiều file hoặc thả thư mục, tiến hành tạo file ZIP Album
+                if (fileQueue.length > 1 || fileQueue.some(f => f.relativePath)) {
+                    statusText.textContent = "Đang đóng gói cấu trúc Album thành file ZIP...";
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '100.0000%';
+                    
+                    const zipBlob = await zip.generateAsync({type:"blob"}, function updateCallback(metadata) {
+                        let p = formatDecimals(metadata.percent);
+                        overallStatusText.textContent = "Đang nén ZIP...";
+                        overallProgressBar.style.width = `${metadata.percent}%`;
+                        overallProgressText.textContent = `${p}%`;
+                    });
+
+                    let url = URL.createObjectURL(zipBlob);
+                    downloadLink.href = url;
+                    
+                    let zipFileName = rootFolderName ? `${rootFolderName}_converted.zip` : `Album_Converted_${bitrate}kbps.zip`;
+                    downloadLink.download = zipFileName;
+                    downloadBtnText.textContent = `Tải file ZIP (${fileQueue.length} bài)`;
+                }
+
+                // Hiển thị kết quả làm tròn 4 chữ số thập phân
+                resultInfo.innerHTML = `
+                    Số lượng: <b>${fileQueue.length} bài hát</b><br>
+                    Tổng dung lượng gốc: <b>${formatBytesToMB(totalOriginalBytes)} MB</b><br>
+                    Tổng dung lượng MP3: <b>${formatBytesToMB(totalFinalBytes)} MB</b><br>
+                    <span class="text-green-600 mt-1 block">Tất cả file đã được sắp xếp đúng thứ tự gốc.</span>
+                `;
+                
+                resultContainer.classList.remove('hidden');
+
+            } catch (error) {
+                console.error(error);
+                alert("Đã xảy ra lỗi khi xử lý. Hãy đảm bảo bạn chọn đúng file m4a hợp lệ.");
+            } finally {
+                isConverting = false;
+                convertBtn.disabled = false;
+                audioInput.disabled = false;
+                clearQueueBtn.classList.remove('hidden');
+                convertIcon.classList.remove('animate-spin');
+                convertText.textContent = "Tiếp tục chuyển đổi";
+            }
+        });
+    </script>
+</body>
+</html>
