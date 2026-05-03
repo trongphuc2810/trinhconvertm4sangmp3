@@ -593,7 +593,7 @@
             overallProgressText.textContent = '0.0000%';
             
             try {
-                // Dùng API mở Cobalt (không cần key) để lấy luồng audio trực tiếp
+                // Dùng API mở Cobalt để lấy luồng audio trực tiếp
                 overallStatusText.textContent = "Tiến trình tổng: Đang lấy dữ liệu (1/1)";
                 statusText.textContent = "Phân tích link và vượt tường lửa CORS...";
                 progressBar.style.width = '20%';
@@ -621,8 +621,19 @@
                 progressBar.style.width = '50%';
                 progressText.textContent = '50.0000%';
 
-                const audioRes = await fetch(audioStreamUrl);
-                if (!audioRes.ok) throw new Error("Không thể lấy dữ liệu âm thanh từ máy chủ.");
+                let audioRes;
+                try {
+                    // Thử fetch trực tiếp trước
+                    audioRes = await fetch(audioStreamUrl);
+                    if (!audioRes.ok) throw new Error("Fetch failed");
+                } catch (e) {
+                    // Nếu lỗi do CORS chặn, sử dụng Proxy trung gian để lách luật
+                    statusText.textContent = "Bị trình duyệt chặn CORS, đang thử tải lại qua Proxy...";
+                    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(audioStreamUrl);
+                    audioRes = await fetch(proxyUrl);
+                }
+
+                if (!audioRes.ok) throw new Error("Không thể lấy dữ liệu âm thanh từ máy chủ. Proxy cũng bị chặn.");
                 const arrayBuffer = await audioRes.arrayBuffer();
 
                 statusText.textContent = "Đang giải mã âm thanh để chuẩn bị Re-encode...";
@@ -664,7 +675,7 @@
 
             } catch (error) {
                 console.error(error);
-                alert("Lỗi khi tải SoundCloud: " + error.message + "\nLưu ý: Nếu API không hoạt động, có thể do chính sách chặn bảo mật của trình duyệt.");
+                alert("Lỗi khi tải SoundCloud: " + error.message + "\nLưu ý: Bạn đang dùng Zen Browser có thể chặn quá mạnh. Hãy ấn vào biểu tượng chiếc khiên (Shield) cạnh thanh địa chỉ và tắt chặn cho trang này nhé!");
             } finally {
                 isConverting = false;
                 scConvertBtn.disabled = false;
