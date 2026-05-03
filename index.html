@@ -20,35 +20,64 @@
                 <i data-lucide="music-4" class="text-blue-500"></i>
                 M4A sang MP3
             </h1>
-            <p class="text-sm text-gray-500 mt-2">Hỗ trợ kéo thả và xử lý hàng loạt Album</p>
+            <p class="text-sm text-gray-500 mt-2">Hỗ trợ kéo thả, Album ZIP và tải từ SoundCloud</p>
         </div>
 
-        <!-- Vùng kéo thả file -->
-        <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:bg-gray-50 transition cursor-pointer relative group">
-            <input type="file" id="audioInput" accept=".m4a,audio/m4a" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
-            <i data-lucide="upload-cloud" class="w-12 h-12 text-gray-400 mx-auto mb-3 group-hover:text-blue-500 transition-colors"></i>
-            <p class="text-sm font-medium text-gray-700">Kéo thả File hoặc Thư mục vào đây (Hoặc Click)</p>
-            <p class="text-xs text-gray-500 mt-1">Tự động quét M4A, tải về file ZIP giữ nguyên cấu trúc thư mục</p>
+        <!-- Chuyển hướng Tabs -->
+        <div class="flex bg-gray-100 p-1 rounded-xl">
+            <button id="tabLocalBtn" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-blue-600 transition">File trên máy</button>
+            <button id="tabScBtn" class="flex-1 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-700 transition">Từ SoundCloud</button>
         </div>
 
-        <!-- Danh sách file đã chọn -->
-        <div id="fileListContainer" class="hidden space-y-2">
-            <div class="flex justify-between items-end">
-                <label class="block text-sm font-medium text-gray-700">Danh sách chờ</label>
-                <button id="clearQueueBtn" class="text-xs text-red-500 hover:text-red-700 font-medium">Xóa tất cả</button>
+        <!-- TAB 1: LOCAL FILES -->
+        <div id="tabLocalContent" class="space-y-6 block">
+            <!-- Vùng kéo thả file -->
+            <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:bg-gray-50 transition cursor-pointer relative group">
+                <input type="file" id="audioInput" accept=".m4a,audio/m4a" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                <i data-lucide="upload-cloud" class="w-12 h-12 text-gray-400 mx-auto mb-3 group-hover:text-blue-500 transition-colors"></i>
+                <p class="text-sm font-medium text-gray-700">Kéo thả File hoặc Thư mục vào đây (Hoặc Click)</p>
+                <p class="text-xs text-gray-500 mt-1">Tự động quét M4A, tải về file ZIP giữ nguyên cấu trúc thư mục</p>
             </div>
-            <div class="bg-gray-50 border border-gray-100 rounded-lg max-h-40 overflow-y-auto p-2">
-                <ul id="fileList" class="space-y-1">
-                    <!-- Các file sẽ xuất hiện ở đây -->
-                </ul>
+
+            <!-- Danh sách file đã chọn -->
+            <div id="fileListContainer" class="hidden space-y-2">
+                <div class="flex justify-between items-end">
+                    <label class="block text-sm font-medium text-gray-700">Danh sách chờ (Đúng thứ tự)</label>
+                    <button id="clearQueueBtn" class="text-xs text-red-500 hover:text-red-700 font-medium">Xóa tất cả</button>
+                </div>
+                <div class="bg-gray-50 border border-gray-100 rounded-lg max-h-40 overflow-y-auto p-2">
+                    <ul id="fileList" class="space-y-1">
+                        <!-- Các file sẽ xuất hiện ở đây -->
+                    </ul>
+                </div>
+                <p id="totalSizeInfo" class="text-xs text-right text-gray-500 font-medium"></p>
             </div>
-            <p id="totalSizeInfo" class="text-xs text-right text-gray-500 font-medium"></p>
+        </div> <!-- End Tab Local Content -->
+
+        <!-- TAB 2: SOUNDCLOUD -->
+        <div id="tabScContent" class="space-y-4 hidden">
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">Link bài hát SoundCloud</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="link" class="w-5 h-5 text-gray-400"></i>
+                    </div>
+                    <input type="url" id="scUrlInput" placeholder="https://soundcloud.com/artist/track" class="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl text-sm focus:ring-blue-500 focus:border-blue-500 bg-gray-50 outline-none transition">
+                </div>
+                <p class="text-xs text-gray-500">Tự động tải luồng âm thanh và mã hóa lại với chuẩn MP3 được chọn.</p>
+            </div>
+            <button id="scConvertBtn" class="w-full bg-[#ff5500] hover:bg-[#e04b00] text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i data-lucide="cloud-download" id="scConvertIcon"></i>
+                <span id="scConvertText">Tải & Chuyển đổi</span>
+            </button>
         </div>
 
         <!-- Tùy chọn chất lượng -->
         <div class="space-y-2">
             <label class="block text-sm font-medium text-gray-700">Chất lượng (Bitrate)</label>
-            <div class="flex gap-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+            
+            <!-- Cho Local -->
+            <div id="localQualityOptions" class="flex gap-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="bitrate" value="128" class="text-blue-600 focus:ring-blue-500">
                     <span class="text-sm text-gray-700">128 kbps</span>
@@ -57,6 +86,14 @@
                     <input type="radio" name="bitrate" value="320" checked class="text-blue-600 focus:ring-blue-500">
                     <span class="text-sm text-gray-700 font-medium">320 kbps (Khuyên dùng)</span>
                 </label>
+            </div>
+
+            <!-- Cho SoundCloud -->
+            <div id="scQualityOptions" class="hidden bg-blue-50 p-3 rounded-lg border border-blue-100">
+                <span class="text-sm text-blue-700 font-medium flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    Tự động cao nhất được lấy từ link
+                </span>
             </div>
         </div>
 
@@ -114,6 +151,19 @@
         const totalSizeInfo = document.getElementById('totalSizeInfo');
         const clearQueueBtn = document.getElementById('clearQueueBtn');
         
+        // Elements cho SoundCloud
+        const tabLocalBtn = document.getElementById('tabLocalBtn');
+        const tabScBtn = document.getElementById('tabScBtn');
+        const tabLocalContent = document.getElementById('tabLocalContent');
+        const tabScContent = document.getElementById('tabScContent');
+        const scUrlInput = document.getElementById('scUrlInput');
+        const scConvertBtn = document.getElementById('scConvertBtn');
+        const scConvertIcon = document.getElementById('scConvertIcon');
+        const scConvertText = document.getElementById('scConvertText');
+        
+        const localQualityOptions = document.getElementById('localQualityOptions');
+        const scQualityOptions = document.getElementById('scQualityOptions');
+
         const convertBtn = document.getElementById('convertBtn');
         const convertIcon = document.getElementById('convertIcon');
         const convertText = document.getElementById('convertText');
@@ -135,6 +185,37 @@
         let fileQueue = [];
         let isConverting = false;
         let rootFolderName = "";
+
+        // --- CHUYỂN ĐỔI TABS ---
+        tabLocalBtn.addEventListener('click', () => {
+            if (isConverting) return;
+            tabLocalBtn.classList.add('bg-white', 'shadow', 'text-blue-600');
+            tabLocalBtn.classList.remove('text-gray-500', 'hover:text-gray-700');
+            tabScBtn.classList.remove('bg-white', 'shadow', 'text-[#ff5500]');
+            tabScBtn.classList.add('text-gray-500', 'hover:text-gray-700');
+            
+            tabLocalContent.classList.remove('hidden');
+            tabScContent.classList.add('hidden');
+            convertBtn.classList.remove('hidden');
+            
+            localQualityOptions.classList.remove('hidden');
+            scQualityOptions.classList.add('hidden');
+        });
+
+        tabScBtn.addEventListener('click', () => {
+            if (isConverting) return;
+            tabScBtn.classList.add('bg-white', 'shadow', 'text-[#ff5500]');
+            tabScBtn.classList.remove('text-gray-500', 'hover:text-gray-700');
+            tabLocalBtn.classList.remove('bg-white', 'shadow', 'text-blue-600');
+            tabLocalBtn.classList.add('text-gray-500', 'hover:text-gray-700');
+            
+            tabScContent.classList.remove('hidden');
+            tabLocalContent.classList.add('hidden');
+            convertBtn.classList.add('hidden'); // Ẩn nút convert của Local đi
+            
+            localQualityOptions.classList.add('hidden');
+            scQualityOptions.classList.remove('hidden');
+        });
 
         // Hàm định dạng số làm tròn chính xác 4 chữ số thập phân
         function formatDecimals(value) {
@@ -490,6 +571,106 @@
                 clearQueueBtn.classList.remove('hidden');
                 convertIcon.classList.remove('animate-spin');
                 convertText.textContent = "Tiếp tục chuyển đổi";
+            }
+        });
+
+        // --- LÕI XỬ LÝ SOUNDCLOUD ---
+        scConvertBtn.addEventListener('click', async () => {
+            const url = scUrlInput.value.trim();
+            if (!url) return alert("Vui lòng nhập link SoundCloud hợp lệ!");
+
+            const bitrate = 320; // Luôn ưu tiên 320kbps để nén file cao nhất từ SoundCloud
+            
+            isConverting = true;
+            scConvertBtn.disabled = true;
+            scUrlInput.disabled = true;
+            scConvertIcon.classList.add('animate-spin');
+            scConvertText.textContent = "Đang kết nối SoundCloud...";
+            
+            progressContainer.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+            overallProgressBar.style.width = '0%';
+            overallProgressText.textContent = '0.0000%';
+            
+            try {
+                // Dùng API mở Cobalt (không cần key) để lấy luồng audio trực tiếp
+                overallStatusText.textContent = "Tiến trình tổng: Đang lấy dữ liệu (1/1)";
+                statusText.textContent = "Phân tích link và vượt tường lửa CORS...";
+                progressBar.style.width = '20%';
+                progressText.textContent = '20.0000%';
+
+                const cobaltRes = await fetch('https://api.cobalt.tools/api/json', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        url: url, 
+                        isAudioOnly: true 
+                    })
+                });
+
+                if (!cobaltRes.ok) throw new Error("API phân tích link không phản hồi.");
+                const cobaltData = await cobaltRes.json();
+                if (cobaltData.status === 'error') throw new Error(cobaltData.text || "Link SoundCloud không hợp lệ hoặc bị ẩn.");
+
+                const audioStreamUrl = cobaltData.url;
+
+                statusText.textContent = "Đang tải dữ liệu âm thanh thô về trình duyệt...";
+                progressBar.style.width = '50%';
+                progressText.textContent = '50.0000%';
+
+                const audioRes = await fetch(audioStreamUrl);
+                if (!audioRes.ok) throw new Error("Không thể lấy dữ liệu âm thanh từ máy chủ.");
+                const arrayBuffer = await audioRes.arrayBuffer();
+
+                statusText.textContent = "Đang giải mã âm thanh để chuẩn bị Re-encode...";
+                progressBar.style.width = '80%';
+                progressText.textContent = '80.0000%';
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+                statusText.textContent = `Đang nén chuẩn MP3 chất lượng cao (${bitrate}kbps)...`;
+                const mp3Blob = await convertToMp3(audioBuffer, bitrate, (percent) => {
+                    let formattedPercent = formatDecimals(percent);
+                    progressBar.style.width = `${percent}%`;
+                    progressText.textContent = `${formattedPercent}%`;
+                    overallProgressBar.style.width = `${percent}%`;
+                    overallProgressText.textContent = `${formattedPercent}%`;
+                });
+
+                let finalFileName = "SoundCloud_Track.mp3"; 
+                // Trích xuất tên từ URL cho đẹp
+                try {
+                    let parts = url.split('/');
+                    let trackName = parts[parts.length - 1];
+                    if(trackName) finalFileName = trackName.replace(/-/g, ' ') + '.mp3';
+                } catch(e) {}
+
+                let urlBlob = URL.createObjectURL(mp3Blob);
+                downloadLink.href = urlBlob;
+                downloadLink.download = finalFileName;
+                downloadBtnText.textContent = "Tải file nhạc MP3";
+
+                resultInfo.innerHTML = `
+                    Nguồn tải: <b>SoundCloud</b><br>
+                    Tổng dung lượng gốc: <b>${formatBytesToMB(arrayBuffer.byteLength)} MB</b><br>
+                    Tổng dung lượng MP3: <b>${formatBytesToMB(mp3Blob.size)} MB</b><br>
+                    <span class="text-green-600 mt-1 block">Tải trực tiếp & Convert ngay trên trình duyệt!</span>
+                `;
+                
+                resultContainer.classList.remove('hidden');
+
+            } catch (error) {
+                console.error(error);
+                alert("Lỗi khi tải SoundCloud: " + error.message + "\nLưu ý: Nếu API không hoạt động, có thể do chính sách chặn bảo mật của trình duyệt.");
+            } finally {
+                isConverting = false;
+                scConvertBtn.disabled = false;
+                scUrlInput.disabled = false;
+                scConvertIcon.classList.remove('animate-spin');
+                scConvertText.textContent = "Tải & Chuyển đổi bài khác";
             }
         });
     </script>
